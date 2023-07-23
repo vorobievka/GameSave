@@ -1,14 +1,12 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class Main {
+    static int itm = 1;
+
     public static void main(String[] args) {
 
         List<GameProgress> savedprogress = new ArrayList<GameProgress>();
@@ -21,86 +19,89 @@ public class Main {
         GameProgress three = new GameProgress(2, 17, 12, 40);
         savedprogress.add(three);
 
-        int itm = 1;
+        savedprogress.forEach((n) -> {
+            paths.add(saveGame(n));
+        });
 
-        Iterator<GameProgress> itr = null;
-        itr = savedprogress.iterator();
-
-        while (itr.hasNext()) {
-            String path = "I://Games/savegames/save" + itm + ".dat";
-            paths.add(path);
-            if (saveGame(itr.next(), path)) {
-                System.out.println("Прогресс сохранен " + path);
-                itm += 1;
-            } else {
-                System.out.println("Ошибка при сохранении");
-            }
-        }
-
-        Iterator<String> iterator = null;
-        Iterator<String> iterator2 = null;
-        iterator = paths.iterator();
-        iterator2 = paths.iterator();
-
-        try {
-            if (zipFiles(iterator)) {
-                while (iterator2.hasNext()) {
-                    String string = iterator2.next();
-                    System.out.println("Файл " + string + " добавлен к архиву");
-                    File f = new File(string);
-                    if (f.delete()) {
-                        System.out.println("Файл " + string + " удален");
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
+        zipFiles(paths);
 
     }
 
-    public static boolean saveGame(GameProgress gameProgress, String path) {
+    public static String saveGame(GameProgress gameProgress) {
+        String path = "I://Games/savegames/save" + itm + ".dat";
         try (FileOutputStream fos = new FileOutputStream(path);
              ObjectOutputStream oos = new ObjectOutputStream(fos)) {
             oos.writeObject(gameProgress);
-            return true;
+            System.out.println("Прогресс сохранен " + path);
+            itm += 1;
+            return path;
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
-            return false;
+            System.out.println("Ошибка при сохранении");
+            return "";
         }
     }
 
-    public static boolean zipFiles(Iterator<String> iterator) {
-
+    public static void zipFiles(List<String> paths) {
         try {
             ZipOutputStream zout = new ZipOutputStream(new FileOutputStream("I://Games/savegames/zip_output.zip"));
-
-            while (iterator.hasNext()) {
-                String string = iterator.next();
+            paths.forEach((n) -> {
+                String string = n;
                 String shortstring = string.substring(string.length() - 9);
-
-                FileInputStream fis = new FileInputStream(string);
-
+                FileInputStream fis = null;
+                try {
+                    fis = new FileInputStream(string);
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
                 ZipEntry entry = new ZipEntry(shortstring);
-                zout.putNextEntry(entry);
+                try {
+                    zout.putNextEntry(entry);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                byte[] buffer = new byte[0];
+                try {
+                    buffer = new byte[fis.available()];
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    fis.read(buffer);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    zout.write(buffer);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    zout.closeEntry();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
-                byte[] buffer = new byte[fis.available()];
-                fis.read(buffer);
-
-                zout.write(buffer);
-
-                zout.closeEntry();
-                fis.close();
-
-            }
             zout.close();
-            return true;
+
+            paths.forEach((n) -> {
+                String string = n;
+                System.out.println("Файл " + string + " добавлен к архиву");
+                File f = new File(string);
+                if (f.delete()) {
+                    System.out.println("Файл " + string + " удален");
+                }
+            });
+
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
-            return false;
+
         }
-
     }
-
 }
